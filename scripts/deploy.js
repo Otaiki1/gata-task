@@ -7,7 +7,7 @@ async function main() {
   // Deploy the contract
   console.log("Deploying ReferralRewards contract...");
   const ReferralRewards = await ethers.getContractFactory("ReferralRewards");
-  const referralRewards = await ReferralRewards.deploy();
+  const referralRewards = await ReferralRewards.deploy(10,5,1);
 
   // Wait for the contract to be mined
   await referralRewards.deployed();
@@ -15,13 +15,7 @@ async function main() {
   console.log(`ReferralRewards contract deployed to: ${referralRewards.address}`);
   console.log(`Transaction hash: ${referralRewards.deployTransaction.hash}`);
 
-  // Set the referral percentages
-  console.log("Setting referral percentages...");
-  await referralRewards.setReferralPercentage(5);
-  await referralRewards.setLevel1Percentage(3);
-  await referralRewards.setLevel2Percentage(2);
 
-  console.log("Referral percentages set!");
 }
 
 main().catch((error) => {
