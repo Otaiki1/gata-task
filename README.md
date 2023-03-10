@@ -1,37 +1,38 @@
 # ReferralRewards Smart Contract
 
-The ReferralRewards contract is a smart contract built on the Ethereum blockchain that implements a 3-tier level referral reward system for NFT sales. The system allows referrers to earn a certain percentage from three consecutive buyers of an NFT sale link that they shared.
+This is a smart contract that allows users to earn referral rewards by referring other users to purchase an NFT (non-fungible token) from the contract.
 
-## How it works
+## Custom Errors
 
-When a user shares a link to an NFT sale, they become the referrer for that sale. If someone clicks on the link and buys the NFT, the referrer earns a percentage of the sale price as a referral fee. This fee is split into three tiers: the referrer earns a percentage, as do the referrer's referrer and the referrer's referrer's referrer. The percentage earned at each tier can be set by the contract owner.
+The following custom errors are defined in this contract:
 
-## Getting started
+- `Error__NotOwner()`: This error is thrown when a non-owner tries to perform a privileged action.
+- `Error__AlreadyBought()`: This error is thrown when a user who has already purchased an NFT tries to purchase another one.
+- `Error__NeverBought()`: This error is thrown when a user who has never purchased an NFT tries to claim referral rewards.
+- `Error__NoReferralRewards()`: This error is thrown when a user who has no referral rewards tries to claim them.
 
-To use the ReferralRewards contract, you'll need to deploy it to the Ethereum network. You can do this using a tool like Remix or Truffle, or you can use a deployment script like the one provided in this repository.
+## Contract Variables and Functions
 
-Once the contract is deployed, you can interact with it using a web3 provider like Metamask or a library like Ethers.js. The contract provides the following functions:
+### Variables
 
-### setReferralPercentage(uint256 percentage)
+- `owner`: The address of the owner of the contract.
+- `referralPercentage`: The percentage of the purchase amount to be paid as referral rewards.
+- `level1Percentage`: The percentage of the purchase amount to be paid as level 1 referral rewards.
+- `level2Percentage`: The percentage of the purchase amount to be paid as level 2 referral rewards.
+- `MAX_LEVELS`: The maximum number of referral levels.
+- `referrers`: A mapping of each address to their referrer's address.
+- `level1Referrers`: A mapping of each address to their level 1 referrer's address.
+- `level2Referrers`: A mapping of each address to their level 2 referrer's address.
+- `isBuyer`: A mapping of each address to a boolean indicating whether they have purchased an NFT.
+- `referralBalance`: A mapping of each address to their total referral balances.
 
-Sets the percentage of the sale price that the referrer earns as a referral fee.
+### Functions
 
-### setLevel1Percentage(uint256 percentage)
-
-Sets the percentage of the referral fee that the referrer's referrer earns.
-
-### setLevel2Percentage(uint256 percentage)
-
-Sets the percentage of the referral fee that the referrer's referrer's referrer earns.
-
-### getReferral(address buyer)
-
-Returns the referrer for the given buyer, as well as the referrer's referrer and the referrer's referrer's referrer (if they exist).
-
-### buy(address referrer)
-
-Allows a buyer to purchase an NFT using the given referrer's referral link.
+- `constructor`: The constructor that sets the owner of the contract and purchase amount to be set as rewards.
+- `buyNFT`: A function to buy an NFT and pay referral rewards to the referrer and their first and second level referrers.
+- `getReferralRewards`: A function to claim referral rewards.
+- `updateReferralPercentages`: A function to update referral percentages, can be called by only owner.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details.
+This smart contract is licensed under the MIT License.
