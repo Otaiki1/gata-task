@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.18;
 
 //Defining Custom errors
 error Error__NotOwner();
@@ -17,7 +17,7 @@ contract ReferralRewards {
     uint public level2Percentage;
 
     // Maximum number of referral levels
-    uint public constant MAX_LEVELS = 3;
+    uint constant MAX_LEVELS = 3;
 
     //a struct that contains each referrers details
     struct Referrer {
@@ -26,24 +26,23 @@ contract ReferralRewards {
     }
 
     // Mapping of each address to their referrer's address
-    mapping(address => Referrer) public referrers;
+    mapping(address => Referrer) private referrers;
 
     // Mapping of each address to their level 1 referrer's address
-    mapping(address => mapping(address => Referrer)) public level1Referrers;
+    mapping(address => mapping(address => Referrer)) private level1Referrers;
 
     // Mapping of each address to their level 2 referrer's address
     mapping(address => mapping(address => mapping(address => Referrer)))
-        public level2Referrers;
+        private level2Referrers;
 
     // Mapping of each address to a boolean indicating whether they have purchased an NFT
-    mapping(address => bool) public isBuyer;
+    mapping(address => bool) private isBuyer;
 
     //mapping of each address to their total referral balances
     mapping(address => uint) referralBalance;
 
     //events
     event ReferralRewardClaimed(address indexed user, uint reward);
-
 
     // Constructor that sets the owner of the contract and purchase amount to be set as rewards
     constructor(
@@ -102,29 +101,30 @@ contract ReferralRewards {
         }
 
         // Transfer the remaining amount to the contract owner
-        owner.transfer(
-            msg.value - referralAmount - level1Amount - level2Amount
-        );
+        (bool sent, ) = payable(owner).call{
+            value: (msg.value - referralAmount - level1Amount - level2Amount)
+        }("");
+        require(sent, "Failed to send reward");
     }
 
     // Function to claim referral rewards
     function getReferralRewards() public {
-    // Check if the user has any referral rewards to claim
-    uint referralReward = referralBalance[msg.sender];
-    if (referralReward == 0) {
-        revert Error__NoReferralRewards();
+        // Check if the user has any referral rewards to claim
+        uint referralReward = referralBalance[msg.sender];
+        if (referralReward == 0) {
+            revert Error__NoReferralRewards();
+        }
+
+        // Reset the user's referral rewards
+        referralBalance[msg.sender] = 0;
+
+        // Send the reward amount to the user
+        (bool sent, ) = payable(msg.sender).call{value: referralReward}("");
+        require(sent, "Failed to send reward");
+
+        // Emit an event for the reward transfer
+        emit ReferralRewardClaimed(msg.sender, referralReward);
     }
-
-    // Reset the user's referral rewards
-    referralBalance[msg.sender] = 0;
-
-    // Send the reward amount to the user
-    bool sent = payable(msg.sender).send(referralReward);
-    require(sent, "Failed to send reward");
-
-    // Emit an event for the reward transfer
-    emit ReferralRewardClaimed(msg.sender, referralReward);
-}
 
     //function to update referral percentages , can be called by only owner
     function updateReferralPercentages(
@@ -138,5 +138,10 @@ contract ReferralRewards {
         referralPercentage = _referralPercent;
         level1Percentage = _level1Percent;
         level2Percentage = _level2Percent;
+    }
+
+    //function to get the referrers balance
+    function getReferralBalance(address _referral) public view returns (uint) {
+        return referralBalance[_referral];
     }
 }
