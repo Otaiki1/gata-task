@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.17;
 
 //Defining Custom errors
 error Error__NotOwner();
@@ -40,6 +40,10 @@ contract ReferralRewards {
 
     //mapping of each address to their total referral balances
     mapping(address => uint) referralBalance;
+
+    //events
+    event ReferralRewardClaimed(address indexed user, uint reward);
+
 
     // Constructor that sets the owner of the contract and purchase amount to be set as rewards
     constructor(
@@ -105,24 +109,22 @@ contract ReferralRewards {
 
     // Function to claim referral rewards
     function getReferralRewards() public {
-        // Make sure the user has purchased an NFT
-        // if(!isBuyer[msg.sender]){
-        //     revert Error__NeverBought();
-        // }
-
-        // Get the referral reward amounts for the user
-        uint referralReward = referralBalance[msg.sender];
-
-        // Make sure the user has referral rewards to claim
-        if (referralReward == 0) {
-            revert Error__NoReferralRewards();
-        }
-        // Reset the user's referral rewards
-        referralBalance[msg.sender] = 0;
-
-        // Transfer the reward amount to the user
-        payable(msg.sender).transfer(referralReward);
+    // Check if the user has any referral rewards to claim
+    uint referralReward = referralBalance[msg.sender];
+    if (referralReward == 0) {
+        revert Error__NoReferralRewards();
     }
+
+    // Reset the user's referral rewards
+    referralBalance[msg.sender] = 0;
+
+    // Send the reward amount to the user
+    bool sent = payable(msg.sender).send(referralReward);
+    require(sent, "Failed to send reward");
+
+    // Emit an event for the reward transfer
+    emit ReferralRewardClaimed(msg.sender, referralReward);
+}
 
     //function to update referral percentages , can be called by only owner
     function updateReferralPercentages(
