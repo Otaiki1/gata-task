@@ -3,76 +3,127 @@ const { ethers } = require("ethers");
 
 describe("ReferralRewards", function () {
   let owner;
-  let referrer;
-  let level1Referrer;
-  let level2Referrer;
-  let buyer1;
-  let buyer2;
-  let buyer3;
-  let referralRewards;
+  let referrer1;
+  let referrer2;
+  let buyer;
+  let ReferralRewards;
 
-  before(async function () {
-    // Get the signers
-    [owner, referrer, level1Referrer, level2Referrer, buyer1, buyer2, buyer3] = await ethers.getSigners();
-
+  beforeEach(async () => {
     // Deploy the contract
-    const ReferralRewards = await ethers.getContractFactory("ReferralRewards");
-    referralRewards = await ReferralRewards.deploy();
-    await referralRewards.deployed();
+    const ReferralRewardsFactory = await ethers.getContractFactory(
+      "ReferralRewards"
+    );
+    ReferralRewards = await ReferralRewardsFactory.deploy(10, 5, 3);
 
-    // Set the referral percentages
-    await referralRewards.setReferralPercentage(5);
-    await referralRewards.setLevel1Percentage(3);
-    await referralRewards.setLevel2Percentage(2);
+    // Get test accounts
+    [owner, referrer1, referrer2, buyer] = await ethers.getSigners();
   });
 
-  it("should allow users to buy NFTs and earn referral rewards", async function () {
-    // Set the referrers for the buyers
-    await referralRewards.setReferrer(buyer1.address, referrer.address);
-    await referralRewards.setReferrer(buyer2.address, level1Referrer.address);
-    await referralRewards.setReferrer(buyer3.address, level2Referrer.address);
+  it("should update referral percentages correctly", async function () {
+    // Call updateReferralPercentages function
+    await ReferralRewards.updateReferralPercentages(20, 10, 5);
 
-    // Make sure the buyers haven't purchased an NFT yet
-    expect(await referralRewards.isBuyer(buyer1.address)).to.equal(false);
-    expect(await referralRewards.isBuyer(buyer2.address)).to.equal(false);
-    expect(await referralRewards.isBuyer(buyer3.address)).to.equal(false);
-
-    // Buy NFTs for the buyers
-    await buyer1.sendTransaction({
-      to: referralRewards.address,
-      value: ethers.utils.parseEther("1")
-    });
-    await buyer2.sendTransaction({
-      to: referralRewards.address,
-      value: ethers.utils.parseEther("1")
-    });
-    await buyer3.sendTransaction({
-      to: referralRewards.address,
-      value: ethers.utils.parseEther("1")
-    });
-
-    // Make sure the buyers are marked as buyers
-    expect(await referralRewards.isBuyer(buyer1.address)).to.equal(true);
-    expect(await referralRewards.isBuyer(buyer2.address)).to.equal(true);
-    expect(await referralRewards.isBuyer(buyer3.address)).to.equal(true);
-
-    // Get the referral rewards for the referrers
-    const referralReward = await referralRewards.referrers(referrer.address);
-    const level1Reward = await referralRewards.level1Referrers(level1Referrer.address);
-    const level2Reward = await referralRewards.level2Referrers(level2Referrer.address);
-
-    // Make sure the referral rewards are correct
-    expect(referralReward).to.equal(ethers.utils.parseEther("0.05"));
-    expect(level1Reward).to.equal(ethers.utils.parseEther("0.03"));
-    expect(level2Reward).to.equal(ethers.utils.parseEther("0.02"));
+    // Check that referral percentages were updated correctly
+    expect(await ReferralRewards.referralPercentage()).to.equal(20);
+    expect(await ReferralRewards.level1Percentage()).to.equal(10);
+    expect(await ReferralRewards.level2Percentage()).to.equal(5);
   });
 
-  it("should allow users to claim their referral rewards", async function () {
-    // Get the initial balances of the users
-    const initialReferrerBalance = await ethers.provider.getBalance(referrer.address);
-    const initialLevel1ReferrerBalance = await ethers.provider.getBalance(level1Referrer.address);
-    const initialLevel2ReferrerBalance = await ethers.provider.getBalance(level2Referrer.address);
+  it("should not allow non-owners to update referral percentages", async function () {
+    // Call updateReferralPercentages function with non-owner account
+    await expect(
+      ReferralRewards.connect(referrer1).updateReferralPercentages(20, 10, 5)
+    ).to.be.revertedWith("Error__NotOwner");
+  });
 
-    // 
-  })
-})
+  it("should allow buyers to claim referral rewards", async function () {
+    // Call buyNFT function with referrer1
+    await ReferralRewards.buyNFT(referrer1.address, { value: 100 });
+
+    // Check that referral balance of referrer1 was updated correctly
+    expect(
+      await ReferralRewards.getReferralBalance(referrer1.address)
+    ).to.equal(10);
+
+    // Call getReferralRewards function with buyer account
+    const initialBalance = await buyer.getBalance();
+    await ReferralRewards.connect(buyer).getReferralRewards();
+    const finalBalance = await buyer.getBalance();
+
+    // Check that referral reward was sent correctly to buyer account
+    expect(finalBalance.sub(initialBalance)).to.equal(10);
+  });
+
+  it("should revert if a user tries to claim referral rewards without any balance", async function () {
+    // Call getReferralRewards function with buyer account
+    await expect(
+      ReferralRewards.connect(buyer).getReferralRewards()
+    ).to.be.revertedWith("Error__NoReferralRewards");
+  });
+
+  it("should not allow users to buy multiple NFTs", async function () {
+    // Call buyNFT function with referrer1
+    await ReferralRewards.buyNFT(referrer1.address, { value: 100 });
+
+    // Call buyNFT function again with same buyer account
+    await expect(
+      ReferralRewards.buyNFT(referrer2.address, { value: 100 })
+    ).to.be.revertedWith("Error__AlreadyBought");
+  });
+
+  it("should pay referral rewards to the referrer and their first and second level referrers", async function () {
+    // Call the buyNFT function with referrer1 as the referrer
+    await referralRewards
+      .connect(buyer)
+      .buyNFT(referrer1.address, { value: 100 });
+
+    // Check that the referrer's referral balance has been updated correctly
+    expect(
+      await referralRewards.getReferralBalance(referrer1.address)
+    ).to.equal(10);
+
+    // Check that the buyer's referrer is referrer1
+    const buyerReferrer = await referralRewards.referrers(buyer.address);
+    expect(buyerReferrer.referrerAddress).to.equal(referrer1.address);
+
+    // Check that the level 1 referrer's referral balance has been updated correctly
+    expect(
+      await referralRewards.getReferralBalance(referrer2.address)
+    ).to.equal(0);
+    const level1Referrer = await referralRewards.level1Referrers(
+      buyer.address,
+      referrer1.address
+    );
+    expect(
+      await referralRewards.getReferralBalance(level1Referrer.referrerAddress)
+    ).to.equal(5);
+
+    // Call the buyNFT function again with referrer2 as the referrer
+    await referralRewards
+      .connect(buyer)
+      .buyNFT(referrer2.address, { value: 100 });
+
+    // Check that the referrer2's referral balance has been updated correctly
+    expect(
+      await referralRewards.getReferralBalance(referrer2.address)
+    ).to.equal(10);
+
+    // Check that the level 2 referrer's referral balance has been updated correctly
+    const level2Referrer = await referralRewards.level2Referrers(
+      buyer.address,
+      referrer1.address,
+      referrer2.address
+    );
+    expect(
+      await referralRewards.getReferralBalance(level2Referrer.referrerAddress)
+    ).to.equal(2);
+
+    // Check that the remaining amount has been transferred to the owner
+    const ownerBalanceBefore = await ethers.provider.getBalance(owner.address);
+    await referralRewards
+      .connect(buyer)
+      .buyNFT(referrer2.address, { value: 100 });
+    const ownerBalanceAfter = await ethers.provider.getBalance(owner.address);
+    expect(ownerBalanceAfter.sub(ownerBalanceBefore)).to.equal(183);
+  });
+});
