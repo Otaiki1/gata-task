@@ -1,6 +1,6 @@
 # ReferralRewards Smart Contract
 
-This is a smart contract that allows users to earn referral rewards by referring other users to purchase an NFT (non-fungible token) from the contract.
+This is a smart contract that allows users to earn referral rewards by referring other users to purchase an NFT (non-fungible token) from the contract. The first time your address is passed in as referrers address , you get referral percentage , on 2nd time, you get level1 percentage , on 3rd time , you get level2 percentage.
 
 ## Custom Errors
 
