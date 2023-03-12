@@ -7,7 +7,7 @@ error Error__AlreadyBought();
 error Error__NeverBought();
 error Error__NoReferralRewards();
 
-contract ReferralRewards {
+contract ReferralRewards{
     // The owner of the contract
     address payable public owner;
 
@@ -21,19 +21,19 @@ contract ReferralRewards {
 
     //a struct that contains each referrers details
     struct Referrer {
-        address referrerAddress;
-        uint referrerAmount;
+        address refereeAddress;
+        uint refereeAmount;
     }
 
     // Mapping of each address to their referrer's address
-    mapping(address => Referrer) private referrers;
+    mapping(address => Referrer) public referrers;
 
     // Mapping of each address to their level 1 referrer's address
-    mapping(address => mapping(address => Referrer)) private level1Referrers;
+    mapping(address => mapping(address => Referrer)) public level1Referrers;
 
     // Mapping of each address to their level 2 referrer's address
     mapping(address => mapping(address => mapping(address => Referrer)))
-        private level2Referrers;
+        public level2Referrers;
 
     // Mapping of each address to a boolean indicating whether they have purchased an NFT
     mapping(address => bool) private isBuyer;
@@ -72,32 +72,32 @@ contract ReferralRewards {
         uint256 level2Amount = (msg.value * level2Percentage) / 100;
 
         // Update referral data
-        Referrer storage buyerReferrer = referrers[msg.sender];
-        if (buyerReferrer.referrerAddress == address(0)) {
+        Referrer storage buyerReferrer = referrers[referrer];
+        if (buyerReferrer.refereeAddress == address(0)) {
             // First time referred
-            buyerReferrer.referrerAddress = referrer;
-            buyerReferrer.referrerAmount = referralAmount;
+            buyerReferrer.refereeAddress = msg.sender;
+            buyerReferrer.refereeAmount = referralAmount;
             referralBalance[referrer] += referralAmount;
         } else if (
-            level1Referrers[referrer][buyerReferrer.referrerAddress]
-                .referrerAddress == address(0)
+            level1Referrers[referrer][buyerReferrer.refereeAddress]
+                .refereeAddress == address(0)
         ) {
             // Second time referred
-            level1Referrers[msg.sender][referrer] = Referrer(
-                buyerReferrer.referrerAddress,
+            level1Referrers[referrer][buyerReferrer.refereeAddress] = Referrer(
+                msg.sender,
                 level1Amount
             );
-            referralBalance[buyerReferrer.referrerAddress] += level1Amount;
+            referralBalance[referrer] += level1Amount;
         } else {
             // Third time referred
             address payable level2Referrer = payable(
-                level1Referrers[referrer][buyerReferrer.referrerAddress]
-                    .referrerAddress
+                level1Referrers[referrer][buyerReferrer.refereeAddress]
+                    .refereeAddress
             );
-            level2Referrers[msg.sender][referrer][
-                buyerReferrer.referrerAddress
-            ] = Referrer(level2Referrer, level2Amount);
-            referralBalance[level2Referrer] += level2Amount;
+            level2Referrers[referrer][
+                buyerReferrer.refereeAddress
+            ][level2Referrer] = Referrer(msg.sender, level2Amount);
+            referralBalance[referrer] += level2Amount;
         }
 
         // Transfer the remaining amount to the contract owner
